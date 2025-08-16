@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registration Form</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen py-10">
+  <!-- Main container -->
+  <div class="w-full max-w-lg p-8 space-y-6 bg-white rounded-xl shadow-lg m-4">
+    <!-- Header -->
+    <div class="text-center">
+      <h1 class="text-3xl font-bold text-gray-800">Swimmer Registration</h1>
+      <p class="text-gray-500 mt-2">Add swimmers one by one, then submit all at once.</p>
+    </div>
+    
+    <!-- Form -->
+    <form id="swimmer_form" class="space-y-6">
+      <div>
+        <label for="full_name" class="block text-sm font-medium text-gray-700">Full Name</label>
+        <input type="text" id="full_name" name="full_name" required
+               placeholder="Enter swimmer's full name"
+               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Gender</label>
+        <div class="mt-2 flex space-x-6">
+          <div class="flex items-center">
+            <input id="gender_male" name="gender" type="radio" value="Male" required
+                   class="h-4 w-4 text-blue-600 border-gray-300">
+            <label for="gender_male" class="ml-2 text-sm text-gray-700">Male</label>
+          </div>
+          <div class="flex items-center">
+            <input id="gender_female" name="gender" type="radio" value="Female"
+                   class="h-4 w-4 text-blue-600 border-gray-300">
+            <label for="gender_female" class="ml-2 text-sm text-gray-700">Female</label>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label for="age" class="block text-sm font-medium text-gray-700">Age</label>
+        <input type="number" id="age" name="age" min="1" required
+               placeholder="Enter age"
+               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+      </div>
+
+      <div>
+        <label for="school_club" class="block text-sm font-medium text-gray-700">School / Club</label>
+        <input type="text" id="school_club" name="school_club" required
+               placeholder="Enter school or club name"
+               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+      </div>
+      
+      <div>
+        <label for="num_events" class="block text-sm font-medium text-gray-700">Number of Events</label>
+        <input type="number" id="num_events" name="num_events" min="0"
+               placeholder="e.g., 3"
+               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+      </div>
+
+      <div id="events_container" class="space-y-2"></div>
+
+      <div id="add_button_container">
+        <button type="button" id="add_swimmer_btn"
+                class="w-full py-3 rounded-md text-white bg-blue-600 hover:bg-blue-700">
+          Add Swimmer
+        </button>
+      </div>
+
+      <div id="edit_buttons_container" class="hidden grid grid-cols-2 gap-4">
+        <button type="button" id="update_swimmer_btn"
+                class="w-full py-3 rounded-md text-white bg-yellow-500 hover:bg-yellow-600">
+          Update Swimmer
+        </button>
+        <button type="button" id="cancel_edit_btn"
+                class="w-full py-3 rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Swimmers List -->
+  <div id="swimmers_list_container" class="w-full max-w-lg mt-4"></div>
+
+  <!-- Bulk Submit -->
+  <div class="w-full max-w-lg mt-6">
+    <button type="button" id="bulk_submit_btn"
+            class="w-full hidden py-3 rounded-md text-white bg-green-600 hover:bg-green-700">
+      Bulk Submit All Swimmers
+    </button>
+  </div>
+
+  <!-- Firebase + App Logic -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCZt6KtFQmU1U8ae7dwa3F4MMtVEY_2AiY",
+      authDomain: "swimmingcompetition-91229.firebaseapp.com",
+      projectId: "swimmingcompetition-91229",
+      storageBucket: "swimmingcompetition-91229.firebasestorage.app",
+      messagingSenderId: "1040379968158",
+      appId: "1:1040379968158:web:07d232b63116790053598f"
+    };
+
+    // Init Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // --- DOM References ---
+    const swimmerForm = document.getElementById('swimmer_form');
+    const numEventsInput = document.getElementById('num_events');
+    const eventsContainer = document.getElementById('events_container');
+    const swimmersListContainer = document.getElementById('swimmers_list_container');
+    const bulkSubmitBtn = document.getElementById('bulk_submit_btn');
+    const addButtonContainer = document.getElementById('add_button_container');
+    const editButtonsContainer = document.getElementById('edit_buttons_container');
+    const addSwimmerBtn = document.getElementById('add_swimmer_btn');
+    const updateSwimmerBtn = document.getElementById('update_swimmer_btn');
+    const cancelEditBtn = document.getElementById('cancel_edit_btn');
+
+    // --- Data Storage ---
+    let allSwimmersData = [];
+    let editingSwimmerId = null;
+
+    // --- Event Listeners ---
+    numEventsInput.addEventListener('input', generateEventCheckboxes);
+    addSwimmerBtn.addEventListener('click', handleAddSwimmer);
+    updateSwimmerBtn.addEventListener('click', handleUpdateSwimmer);
+    cancelEditBtn.addEventListener('click', cancelEditMode);
+    bulkSubmitBtn.addEventListener('click', handleBulkSubmit);
+
+    // --- Functions ---
+    function setEditMode(isEditing) {
+      addButtonContainer.classList.toggle('hidden', isEditing);
+      editButtonsContainer.classList.toggle('hidden', !isEditing);
+      if (!isEditing) editingSwimmerId = null;
+    }
+
+    function generateEventCheckboxes() {
+      eventsContainer.innerHTML = '';
+      const numberOfEvents = parseInt(numEventsInput.value, 10);
+      if (numberOfEvents > 0) {
+        const label = document.createElement('label');
+        label.textContent = 'Select Events & Enter Seed Times';
+        label.className = 'block text-sm font-medium text-gray-700';
+        eventsContainer.appendChild(label);
+        for (let i = 1; i <= numberOfEvents; i++) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'flex items-center space-x-4';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.id = `event_${i}`;
+          checkbox.name = 'events';
+          checkbox.value = `Event ${i}`;
+          checkbox.className = 'h-4 w-4 text-blue-600 border-gray-300 rounded';
+
+          const label = document.createElement('label');
+          label.htmlFor = `event_${i}`;
+          label.textContent = `Event ${i}`;
+          label.className = 'ml-2 text-sm text-gray-700 w-20 flex-shrink-0';
+
+          const seedTimeInput = document.createElement('input');
+          seedTimeInput.type = 'text';
+          seedTimeInput.id = `seed_time_${i}`;
+          seedTimeInput.placeholder = 'e.g., 01:23.45';
+          seedTimeInput.className = 'hidden w-full px-3 py-1 text-sm border border-gray-300 rounded-md';
+
+          checkbox.addEventListener('change', e => {
+            seedTimeInput.classList.toggle('hidden', !e.target.checked);
+            if (!e.target.checked) seedTimeInput.value = '';
+          });
+
+          seedTimeInput.addEventListener('input', e => {
+            e.target.value = e.target.value.replace(/-/g, ':');
+          });
+
+          wrapper.appendChild(checkbox);
+          wrapper.appendChild(label);
+          wrapper.appendChild(seedTimeInput);
+          eventsContainer.appendChild(wrapper);
+        }
+      }
+    }
+
+    function resetPartialForm() {
+      swimmerForm.reset();
+      eventsContainer.innerHTML = '';
+      document.getElementById('full_name').focus();
+    }
+
+    function getSwimmerDataFromForm() {
+      if (!swimmerForm.checkValidity()) {
+        swimmerForm.reportValidity();
+        return null;
+      }
+      const formData = new FormData(swimmerForm);
+      const selectedEvents = [];
+      document.querySelectorAll('input[name="events"]:checked').forEach(cb => {
+        const num = cb.id.split('_')[1];
+        const time = document.getElementById(`seed_time_${num}`).value;
+        selectedEvents.push({ name: cb.value, time });
+      });
+      return {
+        fullName: formData.get('full_name'),
+        gender: formData.get('gender'),
+        age: formData.get('age'),
+        schoolClub: formData.get('school_club'),
+        events: selectedEvents
+      };
+    }
+
+    function handleAddSwimmer() {
+      const data = getSwimmerDataFromForm();
+      if (!data) return;
+      allSwimmersData.push({ id: Date.now(), ...data });
+      renderSwimmersList();
+      resetPartialForm();
+    }
+
+    function renderSwimmersList() {
+      swimmersListContainer.innerHTML = '';
+      if (allSwimmersData.length === 0) {
+        bulkSubmitBtn.classList.add('hidden');
+        return;
+      }
+      const listHeader = document.createElement('h2');
+      listHeader.textContent = 'Added Swimmers';
+      listHeader.className = 'text-xl font-semibold text-gray-700 mb-2';
+      swimmersListContainer.appendChild(listHeader);
+
+      const table = document.createElement('table');
+      table.className = 'min-w-full divide-y divide-gray-200 bg-white shadow rounded-lg';
+      table.innerHTML = `
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Name & Club</th>
+            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Details</th>
+            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">Events & Times</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+      `;
+      const tbody = document.createElement('tbody');
+      allSwimmersData.forEach(swimmer => {
+        const tr = document.createElement('tr');
+        const eventsHtml = swimmer.events.length
+          ? swimmer.events.map(e => `${e.name} (${e.time || 'N/A'})`).join('<br>')
+          : 'No events';
+        tr.innerHTML = `
+          <td class="px-4 py-4">${swimmer.fullName}<br><span class="text-sm text-gray-500">${swimmer.schoolClub}</span></td>
+          <td class="px-4 py-4">Age: ${swimmer.age}<br>Gender: ${swimmer.gender}</td>
+          <td class="px-4 py-4 text-sm text-gray-500">${eventsHtml}</td>
+          <td class="px-4 py-4 text-right space-x-3">
+            <button onclick="handleEditSwimmer(${swimmer.id})" class="text-indigo-600 hover:text-indigo-900">Edit</button>
+            <button onclick="removeSwimmer(${swimmer.id})" class="text-red-600 hover:text-red-900">Remove</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      swimmersListContainer.appendChild(table);
+
+      bulkSubmitBtn.classList.remove('hidden');
+    }
+
+    window.handleEditSwimmer = function (id) {
+      const swimmer = allSwimmersData.find(s => s.id === id);
+      if (!swimmer) return;
+      editingSwimmerId = id;
+      document.getElementById('full_name').value = swimmer.fullName;
+      document.getElementById('age').value = swimmer.age;
+      document.getElementById('school_club').value = swimmer.schoolClub;
+      document.querySelector(`input[name="gender"][value="${swimmer.gender}"]`).checked = true;
+
+      numEventsInput.value = swimmer.events.length;
+      generateEventCheckboxes();
+      swimmer.events.forEach(event => {
+        const cb = document.querySelector(`input[value="${event.name}"]`);
+        if (cb) {
+          cb.checked = true;
+          const num = cb.id.split('_')[1];
+          const input = document.getElementById(`seed_time_${num}`);
+          input.value = event.time;
+          input.classList.remove('hidden');
+        }
+      });
+
+      setEditMode(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    function handleUpdateSwimmer() {
+      const data = getSwimmerDataFromForm();
+      if (!data || editingSwimmerId === null) return;
+      const idx = allSwimmersData.findIndex(s => s.id === editingSwimmerId);
+      allSwimmersData[idx] = { id: editingSwimmerId, ...data };
+      renderSwimmersList();
+      resetPartialForm();
+      setEditMode(false);
+    }
+
+    function cancelEditMode() {
+      resetPartialForm();
+      setEditMode(false);
+    }
+
+    window.removeSwimmer = function (id) {
+      if (editingSwimmerId === id) cancelEditMode();
+      allSwimmersData = allSwimmersData.filter(s => s.id !== id);
+      renderSwimmersList();
+    };
+
+    async function handleBulkSubmit() {
+      if (allSwimmersData.length === 0) return;
+      try {
+        for (let swimmer of allSwimmersData) {
+          await addDoc(collection(db, "swimmers"), swimmer);
+        }
+        showMessage(`✅ Submitted ${allSwimmersData.length} swimmer(s) to Firebase!`);
+        allSwimmersData = [];
+        editingSwimmerId = null;
+        renderSwimmersList();
+        resetPartialForm();
+        setEditMode(false);
+      } catch (err) {
+        console.error(err);
+        alert("Error saving swimmers to Firebase.");
+      }
+    }
+
+    function showMessage(text) {
+      const box = document.createElement('div');
+      box.textContent = text;
+      box.style.position = 'fixed';
+      box.style.top = '20px';
+      box.style.left = '50%';
+      box.style.transform = 'translateX(-50%)';
+      box.style.backgroundColor = '#28a745';
+      box.style.color = '#fff';
+      box.style.padding = '12px 20px';
+      box.style.borderRadius = '8px';
+      document.body.appendChild(box);
+      setTimeout(() => box.remove(), 3000);
+    }
+  </script>
+</body>
+</html>
